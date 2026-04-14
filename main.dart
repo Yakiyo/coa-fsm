@@ -1,4 +1,5 @@
 import 'dart:collection';
+import 'dart:io';
 
 enum RequestType { read, write }
 
@@ -138,8 +139,7 @@ class CacheController {
           cacheStore[currentIndex].data = fetchedData;
 
           waitingForMem = false;
-          currentState =
-              ControllerState.compareTag; // switch back to access
+          currentState = ControllerState.compareTag; // switch back to access
         }
         break;
     }
@@ -156,9 +156,19 @@ void main() {
 
   var cpuRequests = Queue<CPURequest>();
 
-  cpuRequests.add(CPURequest(RequestType.read, 10));
-  cpuRequests.add(CPURequest(RequestType.write, 10, data: 999));
-  cpuRequests.add(CPURequest(RequestType.read, 14));
+  // cpuRequests.add(CPURequest(RequestType.read, 10));
+  // cpuRequests.add(CPURequest(RequestType.write, 10, data: 999));
+  // cpuRequests.add(CPURequest(RequestType.read, 14));
+
+  File("input.txt").readAsStringSync().split("\n").forEach((line) {
+    var parts = line.split(" ");
+    var rtype = parts[0].toLowerCase() == "r" ? RequestType.read : RequestType.write;
+    if (rtype == RequestType.read) {
+      cpuRequests.add(CPURequest(rtype, int.parse(parts[1])));
+    } else {
+      cpuRequests.add(CPURequest(rtype, int.parse(parts[1]), data: int.parse(parts[2])));
+    }
+  });
 
   int clockCycle = 1;
 
@@ -173,30 +183,29 @@ void main() {
         ? cpuRequests.first
         : CPURequest(RequestType.read, 0);
 
-    // 1. Capture the Ready Signal BEFORE the clock tick
+    // check cpu ready before running update
     bool wasReady = cache.cpuReadySignal;
 
-    // 2. Update Hardware Components (The clock tick)
+    // run update on each element
     memory.update();
     cache.update(memory, hasReq, currentReq);
 
-    // 3. CPU checks for a falling edge on the Ready Signal
-    // This strictly means: "I was ready, and now I just accepted a request"
+    // ensure dequeue if there was a signal edge
     String actionLog = "";
     if (hasReq && wasReady && !cache.cpuReadySignal) {
       String typeStr = currentReq.type == RequestType.read ? "READ" : "WRITE";
       actionLog = "Accepted $typeStr Addr: ${currentReq.address}";
-      cpuRequests.removeFirst(); // Safely Dequeue
+      cpuRequests.removeFirst(); // deq
     }
 
-    // 4. Print the trace for this cycle
+    // print stuff
     String isMemBusy = memory.latencyCounter > 0 ? "TRUE" : "FALSE";
     print(
       "${clockCycle.toString().padRight(8)}${cache.getStateName().padRight(15)}${isMemBusy.padRight(12)}$actionLog",
     );
 
     clockCycle++;
-    if (clockCycle > 50) break; // Safety timeout
+    if (clockCycle > 50) break; // emergency shut down
   }
 
   print("-" * 65);
