@@ -160,7 +160,8 @@ void main() {
   // cpuRequests.add(CPURequest(RequestType.write, 10, data: 999));
   // cpuRequests.add(CPURequest(RequestType.read, 14));
 
-  File("input.txt").readAsStringSync().split("\n").forEach((line) {
+  File("input.txt").readAsStringSync().trim().split("\n").forEach((line) {
+    if (line.isEmpty) return;
     var parts = line.split(" ");
     var rtype = parts[0].toLowerCase() == "r" ? RequestType.read : RequestType.write;
     if (rtype == RequestType.read) {
